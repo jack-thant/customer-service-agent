@@ -1,9 +1,21 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
-    app_name: str = "Customer Service AI Backend"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    class Config:
-        env_file = ".env"
+    openai_api_key: str
+    embedding_model: str = "text-embedding-3-small"
+
+    chroma_api_key: str
+    chroma_tenant: str
+    chroma_database: str
+    chroma_collection_name: str = "atome_kb"
+
+    request_timeout_seconds: int = 20
+    max_article_links: int = 100
+    chunk_size: int = 1200
+    chunk_overlap: int = 200
+
 
 settings = Settings()
