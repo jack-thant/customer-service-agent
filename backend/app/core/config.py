@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     chroma_collection_name: str = "atome_kb"
 
     request_timeout_seconds: int = 20
-    max_article_links: int = 100
+    max_article_links: int = 1000
     chunk_size: int = 1200
     chunk_overlap: int = 200
 

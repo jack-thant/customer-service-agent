@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, List
 from urllib.parse import urljoin, urlparse
 
-from app.services.chroma_client import get_chroma_client
+from app.core.chroma import get_chroma_client
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
