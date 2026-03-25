@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     chroma_tenant: str
     chroma_database: str
     chroma_collection_name: str = "atome_kb"
+    
+    database_url: str
 
     request_timeout_seconds: int = 20
     max_article_links: int = 1000

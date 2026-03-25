@@ -1,9 +1,19 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import chat, config, ingest, mistakes, meta_agent
+from app.db.init_db import init_db
 
-app = FastAPI(title="Customer Service AI Backend")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="Customer Service AI Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
