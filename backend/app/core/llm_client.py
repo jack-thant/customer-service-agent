@@ -11,7 +11,7 @@ except ImportError:
 class LLMClient:
     def __init__(self) -> None:
         self.api_key = settings.openai_api_key
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
         self.embedding_model = settings.embedding_model
         self.client = OpenAI(api_key=self.api_key) if OpenAI and self.api_key else None
 

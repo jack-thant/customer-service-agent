@@ -6,6 +6,11 @@ from app.core.llm_client import LLMClient
 from app.db.session import get_db
 from app.repositories.session_repository import SessionRepository
 from app.services.auto_fix_service import AutoFixService
+from app.services.agent_build_service import AgentBuildService
+from app.services.agent_document_service import AgentDocumentService
+from app.services.agent_meta_service import AgentMetaService
+from app.services.agent_policy_service import AgentPolicyService
+from app.services.agent_runtime_chat_service import AgentRuntimeChatService
 from app.services.chat_service import ChatService
 from app.services.config_service import ConfigService
 from app.services.evaluation_service import EvaluationService
@@ -51,6 +56,27 @@ def get_mistake_service(db: Session = Depends(get_db)) -> MistakeService:
     return MistakeService(db)
 
 
+def get_agent_document_service(db: Session = Depends(get_db)) -> AgentDocumentService:
+    return AgentDocumentService(db)
+
+
+def get_agent_meta_service() -> AgentMetaService:
+    return AgentMetaService(llm_client=llm_client)
+
+
+def get_agent_policy_service(db: Session = Depends(get_db)) -> AgentPolicyService:
+    return AgentPolicyService(db)
+
+
+def get_agent_build_service(db: Session = Depends(get_db)) -> AgentBuildService:
+    return AgentBuildService(db=db, llm_client=llm_client)
+
+
+def get_agent_runtime_chat_service(db: Session = Depends(get_db)) -> AgentRuntimeChatService:
+    policy_service = AgentPolicyService(db)
+    return AgentRuntimeChatService(policy_service=policy_service, llm_client=llm_client)
+
+
 def get_evaluation_service() -> EvaluationService:
     return EvaluationService(llm_client=llm_client)
 
@@ -73,4 +99,6 @@ def get_auto_fix_service(db: Session = Depends(get_db)) -> AutoFixService:
         mistake_service=mistake_service,
         chat_service=chat_service,
         evaluation_service=evaluation_service,
+        agent_policy_service=AgentPolicyService(db),
+        agent_build_service=AgentBuildService(db=db, llm_client=llm_client),
     )

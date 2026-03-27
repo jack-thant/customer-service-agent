@@ -15,6 +15,8 @@ class MistakeModel(Base):
     feedback: Mapped[str] = mapped_column(Text, nullable=False)
     route: Mapped[str | None] = mapped_column(Text, nullable=True)
     session_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    runtime: Mapped[str] = mapped_column(Text, nullable=False, default="part1")
+    agent_spec_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
 

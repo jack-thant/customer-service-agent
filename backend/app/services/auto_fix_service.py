@@ -3,7 +3,9 @@ import logging
 
 from app.schemas.chat import ChatRequest
 from app.schemas.config import UpdateConfigRequest
-from app.schemas.mistake import MistakeStatus
+from app.schemas.mistake import MistakeRuntime, MistakeStatus
+from app.services.agent_build_service import AgentBuildService
+from app.services.agent_policy_service import AgentPolicyService
 from app.services.chat_service import ChatService
 from app.services.config_service import ConfigService
 from app.services.evaluation_service import EvaluationService
@@ -21,14 +23,28 @@ class AutoFixService:
         mistake_service: MistakeService,
         chat_service: ChatService,
         evaluation_service: EvaluationService,
+        agent_policy_service: AgentPolicyService,
+        agent_build_service: AgentBuildService,
     ) -> None:
         self.llm_client = llm_client
         self.config_service = config_service
         self.mistake_service = mistake_service
         self.chat_service = chat_service
         self.evaluation_service = evaluation_service
+        self.agent_policy_service = agent_policy_service
+        self.agent_build_service = agent_build_service
 
     def process_mistake(self, mistake_id: int):
+        mistake = self.mistake_service.get_mistake_model(mistake_id)
+        if mistake is None:
+            return None
+
+        if mistake.runtime == MistakeRuntime.PART2.value:
+            return self._process_part2_mistake(mistake_id)
+
+        return self._process_part1_mistake(mistake_id)
+
+    def _process_part1_mistake(self, mistake_id: int):
         mistake = self.mistake_service.get_mistake_model(mistake_id)
         if mistake is None:
             return None
@@ -88,6 +104,58 @@ class AutoFixService:
             mistake_id,
             rerun_answer=rerun_response.answer,
             status=final_status,
+        )
+
+    def _process_part2_mistake(self, mistake_id: int):
+        mistake = self.mistake_service.get_mistake_model(mistake_id)
+        if mistake is None:
+            return None
+
+        active_spec = self.agent_policy_service.get_active_spec()
+        if active_spec is None:
+            return self.mistake_service.update_analysis_and_fix(
+                mistake_id,
+                root_cause="No active generated agent available for patching.",
+                suggested_fix="Build and activate a generated agent before running part2 auto-fix.",
+                applied_fix=None,
+                status=MistakeStatus.PATCHED,
+            )
+
+        target_version = mistake.agent_spec_version or active_spec.version
+        current_guidelines = active_spec.instruction_text
+
+        analysis = self._generate_analysis(
+            user_query=mistake.user_query,
+            bot_answer=mistake.bot_answer,
+            feedback=mistake.feedback,
+            current_guidelines=current_guidelines,
+            route=mistake.route,
+        )
+
+        root_cause = analysis.get("root_cause", "").strip()
+        suggested_fix = analysis.get("suggested_fix", "").strip()
+        applied_fix = self._build_guideline_patch(suggested_fix)
+
+        updated_spec = self.agent_build_service.append_fix_to_version(
+            version=target_version,
+            fix=applied_fix,
+        )
+        if updated_spec is None:
+            return self.mistake_service.update_analysis_and_fix(
+                mistake_id,
+                root_cause=root_cause,
+                suggested_fix=suggested_fix,
+                applied_fix=None,
+                status=MistakeStatus.PATCHED,
+            )
+
+        return self.mistake_service.update_analysis_and_fix(
+            mistake_id,
+            root_cause=root_cause,
+            suggested_fix=suggested_fix,
+            applied_fix=applied_fix,
+            rerun_answer="Part 2 fix applied to generated agent instructions.",
+            status=MistakeStatus.FIXED,
         )
 
     def _generate_analysis(

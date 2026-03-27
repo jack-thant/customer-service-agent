@@ -1,7 +1,12 @@
 from sqlalchemy.orm import Session
 
 from app.models.mistake import MistakeModel
-from app.schemas.mistake import CreateMistakeRequest, MistakeResponse, MistakeStatus
+from app.schemas.mistake import (
+    CreateMistakeRequest,
+    MistakeResponse,
+    MistakeRuntime,
+    MistakeStatus,
+)
 
 
 class MistakeRepository:
@@ -15,6 +20,8 @@ class MistakeRepository:
             feedback=payload.feedback,
             route=payload.route,
             session_id=payload.session_id,
+            runtime=payload.runtime.value,
+            agent_spec_version=payload.agent_spec_version,
             status=MistakeStatus.OPEN.value,
         )
         self.db.add(mistake)
@@ -79,6 +86,8 @@ def to_response(m: MistakeModel) -> MistakeResponse:
         feedback=m.feedback,
         route=m.route,
         session_id=m.session_id,
+        runtime=MistakeRuntime(m.runtime),
+        agent_spec_version=m.agent_spec_version,
         status=MistakeStatus(m.status),
         root_cause=m.root_cause,
         suggested_fix=m.suggested_fix,

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, config, ingest, mistakes, meta_agent
+from app.api.routes import agent, chat, config, ingest, mistakes
 from app.db.init_db import init_db
 
 
@@ -27,7 +27,7 @@ app.include_router(chat.router)
 app.include_router(config.router)
 app.include_router(ingest.router)
 app.include_router(mistakes.router)
-app.include_router(meta_agent.router)
+app.include_router(agent.router)
 
 @app.get("/")
 def root():

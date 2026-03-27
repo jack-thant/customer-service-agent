@@ -11,12 +11,19 @@ class MistakeStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+class MistakeRuntime(str, Enum):
+    PART1 = "part1"
+    PART2 = "part2"
+
+
 class CreateMistakeRequest(BaseModel):
     user_query: str = Field(..., min_length=1)
     bot_answer: str = Field(..., min_length=1)
     feedback: str = Field(..., min_length=1, max_length=5000)
     route: str | None = None
     session_id: str | None = None
+    runtime: MistakeRuntime = MistakeRuntime.PART1
+    agent_spec_version: int | None = None
 
 
 class UpdateMistakeRequest(BaseModel):
@@ -30,6 +37,8 @@ class MistakeResponse(BaseModel):
     feedback: str
     route: str | None = None
     session_id: str | None = None
+    runtime: MistakeRuntime
+    agent_spec_version: int | None = None
     status: MistakeStatus
     root_cause: str | None = None
     suggested_fix: str | None = None
