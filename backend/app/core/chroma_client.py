@@ -6,7 +6,7 @@ from app.core.config import settings
 class ChromaClientWrapper:
     def __init__(self) -> None:
         self.client = get_chroma_client()
-        self.collection = self.client.get_collection(
+        self.collection = self.client.get_or_create_collection(
             name=settings.chroma_collection_name
         )
 

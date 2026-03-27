@@ -1,15 +1,16 @@
 import hashlib
-import uuid
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.llm_client import LLMClient
 from app.models.knowledge_document import KnowledgeDocumentModel
 from app.repositories.knowledge_document_repository import KnowledgeDocumentRepository
 from app.schemas.agent import KnowledgeDocumentStatus
+from app.services.s3_storage_service import S3StorageService
 
 
 class AgentDocumentService:
@@ -18,8 +19,9 @@ class AgentDocumentService:
 
     def __init__(self, db: Session) -> None:
         self.repository = KnowledgeDocumentRepository(db)
-        self.upload_dir = Path(__file__).resolve().parents[3] / "data" / "uploads"
-        self.upload_dir.mkdir(parents=True, exist_ok=True)
+        if not settings.aws_s3_bucket:
+            raise RuntimeError("S3 storage is required. Set AWS_S3_BUCKET in environment.")
+        self.s3_storage = S3StorageService()
 
     def save_uploaded_file(self, file: UploadFile) -> KnowledgeDocumentModel:
         filename = file.filename or "uploaded_file"
@@ -37,19 +39,40 @@ class AgentDocumentService:
         checksum = hashlib.sha256(data).hexdigest()
         existing = self.repository.get_by_checksum(checksum)
         if existing is not None:
-            return existing
+            if existing.storage_path.startswith("s3://") and self.s3_storage.object_exists(existing.storage_path):
+                return existing
 
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        storage_path = self.upload_dir / unique_name
-        with open(storage_path, "wb") as f:
-            f.write(data)
+            mime_type = file.content_type or "text/plain"
+            key = self.s3_storage.make_object_key(filename)
+            storage_path = self.s3_storage.upload_bytes(
+                data=data,
+                key=key,
+                content_type=mime_type,
+            )
+            updated = self.repository.update_after_reupload(
+                existing.id,
+                storage_path=storage_path,
+                mime_type=mime_type,
+                size_bytes=size_bytes,
+                status=KnowledgeDocumentStatus.UPLOADED,
+                error_message=None,
+            )
+            if updated is not None:
+                return updated
 
         mime_type = file.content_type or "text/plain"
+        key = self.s3_storage.make_object_key(filename)
+        storage_path = self.s3_storage.upload_bytes(
+            data=data,
+            key=key,
+            content_type=mime_type,
+        )
+
         return self.repository.create(
             original_filename=filename,
             mime_type=mime_type,
             size_bytes=size_bytes,
-            storage_path=str(storage_path),
+            storage_path=storage_path,
             checksum=checksum,
             status=KnowledgeDocumentStatus.UPLOADED,
         )
@@ -69,14 +92,16 @@ class AgentDocumentService:
             error_message=error_message,
         )
 
-    @staticmethod
-    def read_document_text(document: KnowledgeDocumentModel) -> str:
-        path = Path(document.storage_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Document not found: {document.storage_path}")
+    def read_document_text(self, document: KnowledgeDocumentModel) -> str:
+        storage_path = document.storage_path
 
-        ext = path.suffix.lower()
-        raw = path.read_text(encoding="utf-8", errors="ignore")
+        if not storage_path.startswith("s3://"):
+            raise ValueError(
+                f"Invalid storage path for production mode: {storage_path}. Expected s3:// URI."
+            )
+
+        ext = Path(document.original_filename).suffix.lower()
+        raw = self.s3_storage.read_text(storage_path)
 
         if ext in {".html", ".htm"}:
             soup = BeautifulSoup(raw, "html.parser")

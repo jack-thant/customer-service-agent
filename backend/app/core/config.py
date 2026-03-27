@@ -19,5 +19,12 @@ class Settings(BaseSettings):
     chunk_size: int = 1200
     chunk_overlap: int = 200
 
+    # S3 settings for Part 2 uploaded documents
+    aws_region: str = "ap-southeast-2"
+    aws_s3_bucket: str = ""
+    aws_s3_prefix: str = "agent-uploads"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+
 
 settings = Settings()

@@ -68,3 +68,27 @@ class KnowledgeDocumentRepository:
         self.db.commit()
         self.db.refresh(doc)
         return doc
+
+    def update_after_reupload(
+        self,
+        document_id: int,
+        *,
+        storage_path: str,
+        mime_type: str,
+        size_bytes: int,
+        status: KnowledgeDocumentStatus,
+        error_message: str | None = None,
+    ) -> KnowledgeDocumentModel | None:
+        doc = self.get_by_id(document_id)
+        if doc is None:
+            return None
+
+        doc.storage_path = storage_path
+        doc.mime_type = mime_type
+        doc.size_bytes = size_bytes
+        doc.status = status.value
+        doc.error_message = error_message
+
+        self.db.commit()
+        self.db.refresh(doc)
+        return doc
