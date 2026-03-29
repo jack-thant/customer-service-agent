@@ -145,11 +145,11 @@ export default function AgentPage() {
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    const allowedExtensions = ['.txt', '.md', '.html', '.htm'];
+    const allowedExtensions = ['.txt', '.md', '.html', '.htm', '.pdf'];
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
 
     if (!allowedExtensions.includes(fileExt)) {
-      toast.error('Unsupported file type. Please use .txt, .md, .html, or .htm files.');
+      toast.error('Unsupported file type. Please use .txt, .md, .html, .htm, or text-based .pdf files.');
       return;
     }
 
@@ -423,15 +423,19 @@ export default function AgentPage() {
                       <h2 className="text-base font-semibold text-foreground sm:text-lg">
                         Document Upload
                       </h2>
-                      <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                        Upload documents (.txt, .md, .html) to train your agent. Max 5MB per file.
+                      <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
+                        Upload documents (.txt, .md, .html, .pdf) to train your agent. Max 5MB per file.
+                      </p>
+                      <p className="mt-2 flex items-start gap-1 text-xs text-warning sm:text-sm">
+                        <AlertCircle className="mt-0.5 size-3 shrink-0 sm:size-4" />
+                        PDF support is text-based only. (no OCR).
                       </p>
 
                       <div className="mt-4">
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept=".txt,.md,.html,.htm"
+                          accept=".txt,.md,.html,.htm,.pdf"
                           onChange={handleFileSelect}
                           className="hidden"
                         />

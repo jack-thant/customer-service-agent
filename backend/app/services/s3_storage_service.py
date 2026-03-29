@@ -44,6 +44,11 @@ class S3StorageService:
         body = response["Body"].read()
         return body.decode("utf-8", errors="ignore")
 
+    def read_bytes(self, storage_path: str) -> bytes:
+        bucket, key = self._parse_s3_uri(storage_path)
+        response = self.client.get_object(Bucket=bucket, Key=key)
+        return response["Body"].read()
+
     def object_exists(self, storage_path: str) -> bool:
         bucket, key = self._parse_s3_uri(storage_path)
         try:

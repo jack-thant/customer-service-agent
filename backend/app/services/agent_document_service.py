@@ -1,4 +1,5 @@
 import hashlib
+from io import BytesIO
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -14,7 +15,7 @@ from app.services.s3_storage_service import S3StorageService
 
 
 class AgentDocumentService:
-    ALLOWED_EXTENSIONS = {".txt", ".md", ".html", ".htm"}
+    ALLOWED_EXTENSIONS = {".txt", ".md", ".html", ".htm", ".pdf"}
     MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
     def __init__(self, db: Session) -> None:
@@ -27,7 +28,13 @@ class AgentDocumentService:
         filename = file.filename or "uploaded_file"
         ext = Path(filename).suffix.lower()
         if ext not in self.ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f"Unsupported file extension: {ext}")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Unsupported file extension: {ext}. "
+                    "Allowed: .txt, .md, .html, .htm, .pdf (text-based PDF only, no OCR)."
+                ),
+            )
 
         data = file.file.read()
         size_bytes = len(data)
@@ -101,6 +108,10 @@ class AgentDocumentService:
             )
 
         ext = Path(document.original_filename).suffix.lower()
+        if ext == ".pdf":
+            pdf_bytes = self.s3_storage.read_bytes(storage_path)
+            return self._extract_pdf_text(pdf_bytes)
+
         raw = self.s3_storage.read_text(storage_path)
 
         if ext in {".html", ".htm"}:
@@ -109,6 +120,28 @@ class AgentDocumentService:
             return "\n".join([line for line in text.splitlines() if line.strip()])
 
         return raw
+
+    @staticmethod
+    def _extract_pdf_text(pdf_bytes: bytes) -> str:
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise RuntimeError("pypdf is required for PDF uploads. Please install pypdf.") from exc
+
+        reader = PdfReader(BytesIO(pdf_bytes))
+        pages: list[str] = []
+        for page in reader.pages:
+            text = (page.extract_text() or "").strip()
+            if text:
+                pages.append(text)
+
+        extracted = "\n\n".join(pages).strip()
+        if not extracted:
+            raise ValueError(
+                "No extractable text found in PDF. Only text-based PDFs are supported; "
+                "scanned/image PDFs require OCR and are not supported."
+            )
+        return extracted
 
     @staticmethod
     def chunk_text(text: str, chunk_size: int = 1200, chunk_overlap: int = 200) -> list[str]:
