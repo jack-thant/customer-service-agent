@@ -343,13 +343,13 @@ export default function MistakesPage() {
               return (
                 <div
                   key={item.key}
-                  className="rounded-xl bg-surface-container p-3 sm:p-4"
+                  className="rounded-xl bg-surface-container p-3 sm:p-6"
                 >
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Icon className="size-4" />
-                    <span className="text-xs font-medium">{item.label}</span>
+                    <span className="text-xs font-semibold tracking-wide uppercase">{item.label}</span>
                   </div>
-                  <p className="mt-1 font-display text-xl font-bold text-foreground sm:mt-2 sm:text-2xl">
+                  <p className="mt-1 font-display text-3xl text-primary font-bold md:mt-2 md:text-5xl">
                     {count}
                   </p>
                 </div>
@@ -360,13 +360,38 @@ export default function MistakesPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6 flex w-full flex-wrap bg-surface-container-low sm:w-auto">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="open">Open</TabsTrigger>
-              <TabsTrigger value="patched">Patched</TabsTrigger>
-              <TabsTrigger value="fixed">Fixed</TabsTrigger>
-              <TabsTrigger value="archived">Archived</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+            <TabsList className="mb-6 flex w-full flex-row bg-surface-container-low sm:w-auto">
+              <TabsTrigger
+                value="all"
+                className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-secondary"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger
+                value="open"
+                className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-secondary"
+              >
+                Open
+              </TabsTrigger>
+              <TabsTrigger
+                value="patched"
+                className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-secondary"
+              >
+                Patched
+              </TabsTrigger>
+              <TabsTrigger
+                value="fixed"
+                className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-secondary"
+              >
+                Fixed
+              </TabsTrigger>
+              <TabsTrigger
+                value="archived"
+                className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-secondary"
+              >
+                Archived
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab}>

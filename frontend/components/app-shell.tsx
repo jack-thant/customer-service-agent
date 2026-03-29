@@ -1,16 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { MessageSquare, Settings, AlertTriangle, Sparkles, Menu, X } from 'lucide-react';
+import { MessageSquare, Settings, AlertTriangle, Sparkles, Menu, X, Bot, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { checkHealth } from '@/lib/api';
 
-const navItems = [
-  { href: '/', label: 'Chat', icon: MessageSquare, description: 'Customer Support' },
-  { href: '/config', label: 'Config', icon: Settings, description: 'Knowledge Base' },
-  { href: '/mistakes', label: 'Mistakes', icon: AlertTriangle, description: 'Error Reports' },
+const navGroups = [
+  {
+    label: 'Part 1 - Service Agent',
+    items: [
+      { href: '/', label: 'Chat', icon: MessageSquare, description: 'Customer Support' },
+      { href: '/config', label: 'Config', icon: Settings, description: 'Knowledge Base' },
+    ],
+  },
+  {
+    label: 'Part 2 - Generated Agent',
+    items: [
+      { href: '/agent', label: 'Agent Studio', icon: Cpu, description: 'Build & Configure' },
+    ],
+  },
+  {
+    label: 'Management',
+    items: [
+      { href: '/mistakes', label: 'Mistakes', icon: AlertTriangle, description: 'Error Reports' },
+    ],
+  },
 ];
 
 interface AppShellProps {
@@ -20,6 +37,37 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isBackendOnline, setIsBackendOnline] = useState(false);
+  const [isHealthChecking, setIsHealthChecking] = useState(true);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const runHealthCheck = async () => {
+      try {
+        await checkHealth();
+        if (!isCancelled) {
+          setIsBackendOnline(true);
+        }
+      } catch {
+        if (!isCancelled) {
+          setIsBackendOnline(false);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsHealthChecking(false);
+        }
+      }
+    };
+
+    runHealthCheck();
+    const interval = setInterval(runHealthCheck, 15000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
@@ -32,7 +80,7 @@ export function AppShell({ children }: AppShellProps) {
             <Sparkles className="size-4 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-display text-base font-bold tracking-tight text-foreground">
+            <h1 className="font-[var(--font-manrope)] text-base font-bold tracking-tight text-foreground">
               Service AI
             </h1>
           </div>
@@ -69,7 +117,7 @@ export function AppShell({ children }: AppShellProps) {
             <Sparkles className="size-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-display text-lg font-bold tracking-tight text-foreground">
+            <h1 className="font-[var(--font-manrope)] text-lg font-bold tracking-tight text-foreground">
               Service AI
             </h1>
             <p className="text-xs text-muted-foreground">Console</p>
@@ -77,43 +125,52 @@ export function AppShell({ children }: AppShellProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
-          <ul className="space-y-2">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={closeMobileMenu}
-                    className={cn(
-                      'group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200',
-                      isActive
-                        ? 'bg-surface-container-lowest text-foreground'
-                        : 'text-muted-foreground hover:bg-surface-container hover:text-foreground'
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'flex size-9 items-center justify-center rounded-lg transition-all',
-                        isActive
-                          ? 'bg-gradient-to-br from-primary to-primary-dim text-primary-foreground'
-                          : 'bg-surface-container group-hover:bg-surface-container-high'
-                      )}
-                    >
-                      <Icon className="size-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="space-y-6">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                <p className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </p>
+                <ul className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    const Icon = item.icon;
+                    
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={closeMobileMenu}
+                          className={cn(
+                            'group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200',
+                            isActive
+                              ? 'bg-surface-container-lowest text-foreground'
+                              : 'text-muted-foreground hover:bg-surface-container hover:text-foreground'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'flex size-9 items-center justify-center rounded-lg transition-all',
+                              isActive
+                                ? 'bg-gradient-to-br from-primary to-primary-dim text-primary-foreground'
+                                : 'bg-surface-container group-hover:bg-surface-container-high'
+                            )}
+                          >
+                            <Icon className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{item.label}</p>
+                            <p className="text-xs text-muted-foreground">{item.description}</p>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         </nav>
 
         {/* Footer */}
@@ -121,8 +178,19 @@ export function AppShell({ children }: AppShellProps) {
           <div className="rounded-xl bg-surface-container p-4">
             <p className="text-xs font-medium text-muted-foreground">Meta-Agent Status</p>
             <div className="mt-2 flex items-center gap-2">
-              <div className="size-2 animate-pulse rounded-full bg-success" />
-              <span className="text-sm text-foreground">Online</span>
+              <div
+                className={cn(
+                  'size-2 rounded-full',
+                  isHealthChecking
+                    ? 'animate-pulse bg-warning'
+                    : isBackendOnline
+                      ? 'animate-pulse bg-success'
+                      : 'bg-destructive'
+                )}
+              />
+              <span className="text-sm text-foreground">
+                {isHealthChecking ? 'Checking...' : isBackendOnline ? 'Online' : 'Offline'}
+              </span>
             </div>
           </div>
         </div>
