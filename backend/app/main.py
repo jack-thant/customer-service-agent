@@ -32,3 +32,7 @@ app.include_router(agent.router)
 @app.get("/")
 def root():
     return {"message": "Welcome to the Customer Service AI Backend!"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

@@ -20,6 +20,9 @@ class AgentSpecRepository:
     def get_by_version(self, version: int) -> AgentSpecModel | None:
         return self.db.query(AgentSpecModel).filter(AgentSpecModel.version == version).first()
 
+    def list_all(self) -> list[AgentSpecModel]:
+        return self.db.query(AgentSpecModel).order_by(AgentSpecModel.version.desc()).all()
+
     def get_next_version(self) -> int:
         current_max = self.db.query(func.max(AgentSpecModel.version)).scalar() or 0
         return int(current_max) + 1
@@ -59,8 +62,14 @@ class AgentSpecRepository:
         if target is None:
             return None
 
-        self.db.query(AgentSpecModel).update({AgentSpecModel.active: False})
-        target.active = True
+        current_active = self.get_active()
+
+        if current_active and current_active.id != target.id:
+            current_active.active = False
+
+        if not target.active:
+            target.active = True
+
         self.db.commit()
         self.db.refresh(target)
         return target

@@ -64,6 +64,15 @@ class ActiveAgentSpecResponse(BaseModel):
     updated_at: datetime
 
 
+class AgentSpecResponse(BaseModel):
+    version: int
+    instruction_text: str
+    status: AgentSpecStatus
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
 class ActivateAgentSpecResponse(BaseModel):
     version: int
     active: bool

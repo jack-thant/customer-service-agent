@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,6 +24,7 @@ import {
   MessageSquare,
   User,
   Trash2,
+  Search,
 } from 'lucide-react';
 import {
   uploadAgentDocument,
@@ -31,6 +32,8 @@ import {
   getBuildJobStatus,
   sendMetaChat,
   getActiveSpec,
+  getAllSpecs,
+  activateSpecVersion,
   sendAgentChatMessage,
   createAgentMistake,
 } from '@/lib/api';
@@ -70,7 +73,10 @@ export default function AgentPage() {
 
   // Active Spec State
   const [activeSpec, setActiveSpec] = useState<AgentSpec | null>(null);
+  const [allSpecs, setAllSpecs] = useState<AgentSpec[]>([]);
   const [isLoadingSpec, setIsLoadingSpec] = useState(true);
+  const [versionSearch, setVersionSearch] = useState('');
+  const [activatingVersion, setActivatingVersion] = useState<number | null>(null);
 
   // Agent Chat State
   const [sessionId] = useState(() => generateSessionId());
@@ -105,16 +111,29 @@ export default function AgentPage() {
     }
   }, [chatMessages]);
 
+  const filteredSpecs = useMemo(() => {
+    if (!versionSearch.trim()) return allSpecs;
+    const query = versionSearch.toLowerCase().trim();
+    return allSpecs.filter((s) => String(s.version).includes(query));
+  }, [allSpecs, versionSearch]);
+
   const fetchActiveSpec = async () => {
     setIsLoadingSpec(true);
     try {
-      const spec = await getActiveSpec();
-      setActiveSpec(spec);
-      setCurrentInstructions(spec.instruction_text);
-      setCurrentSpecVersion(spec.version);
-    } catch {
-      // 404 means no active spec, which is okay
-      setActiveSpec(null);
+      const [spec, specs] = await Promise.all([
+        getActiveSpec().catch(() => null),
+        getAllSpecs().catch(() => []),
+      ]);
+
+      if (spec) {
+        setActiveSpec(spec);
+        setCurrentInstructions(spec.instruction_text);
+        setCurrentSpecVersion(spec.version);
+      } else {
+        setActiveSpec(null);
+      }
+      
+      setAllSpecs(specs);
     } finally {
       setIsLoadingSpec(false);
     }
@@ -327,6 +346,23 @@ export default function AgentPage() {
     }
   };
 
+  const handleActivateSpec = async (version: number) => {
+    setActivatingVersion(version);
+    try {
+      const result = await activateSpecVersion(version);
+      if (result.active) {
+        toast.success(`Activated agent version v${result.version}`);
+      } else {
+        toast.success(`Activation request sent for v${result.version}`);
+      }
+      await fetchActiveSpec();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to activate agent version');
+    } finally {
+      setActivatingVersion(null);
+    }
+  };
+
   return (
     <AppShell>
       <div className="flex h-full flex-col">
@@ -334,7 +370,7 @@ export default function AgentPage() {
         <header className="border-b border-surface-container-high bg-surface-container-lowest px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="font-[var(--font-manrope)] text-xl font-bold text-foreground sm:text-2xl">
+              <h1 className="text-xl font-bold text-foreground sm:text-2xl">
                 Agent Studio
               </h1>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">
@@ -687,8 +723,8 @@ export default function AgentPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <h2 className="font-[var(--font-manrope)] text-base font-semibold text-foreground sm:text-lg">
-                          Active Agent Spec
+                        <h2 className="text-base font-semibold text-foreground sm:text-lg">
+                          Agent Versions
                         </h2>
                         <Button
                           variant="ghost"
@@ -700,45 +736,111 @@ export default function AgentPage() {
                         </Button>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                        Currently deployed agent configuration
+                        View and manage all published agent versions. Select a version to activate and deploy it as the current live agent.
                       </p>
 
-                      {isLoadingSpec ? (
-                        <div className="mt-4 flex items-center justify-center py-8">
-                          <Spinner className="size-6" />
+                      <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-6">
+                          <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <input
+                              type="text"
+                              value={versionSearch}
+                              onChange={(e) => setVersionSearch(e.target.value)}
+                              placeholder="Search versions..."
+                              className="h-10 w-full rounded-lg border border-surface-container-high bg-surface-container-low pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              disabled={isLoadingSpec}
+                            />
+                          </div>
                         </div>
-                      ) : activeSpec ? (
-                        <div className="mt-4 rounded-xl bg-surface-container p-4">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <Badge className="bg-success/10 text-success">
-                              <CheckCircle2 className="mr-1 size-3" />
-                              Version {activeSpec.version}
-                            </Badge>
-                            <Badge className="bg-primary/10 text-primary">
-                              {activeSpec.status}
-                            </Badge>
+
+                        {isLoadingSpec ? (
+                          <div className="flex items-center justify-center py-12">
+                            <Spinner className="size-8" />
                           </div>
-                          <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="size-3" />
-                            Updated: {new Date(activeSpec.updated_at).toLocaleString()}
-                          </div>
-                          <div className="mt-3 rounded-lg bg-surface-container-low p-3">
-                            <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-4">
-                              {activeSpec.instruction_text}
+                        ) : filteredSpecs.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center rounded-xl bg-surface-container py-12">
+                            <AlertCircle className="size-8 text-muted-foreground" />
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {allSpecs.length === 0 ? "No agent specs available" : "No matching versions found"}
                             </p>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 flex flex-col items-center justify-center rounded-xl bg-surface-container py-8">
-                          <AlertCircle className="size-8 text-muted-foreground" />
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            No active agent spec
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Build your first agent to get started
-                          </p>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="relative pl-4 sm:pl-8">
+                            {/* Timeline line */}
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-surface-container-high" />
+                            
+                            <div className="space-y-8">
+                              {filteredSpecs.map((spec) => {
+                                const isActive = activeSpec?.version === spec.version;
+                                const isActivating = activatingVersion === spec.version;
+                                
+                                return (
+                                  <div key={spec.version} className="relative">
+                                    {/* Timeline dot */}
+                                    <div className={cn(
+                                      "absolute -left-4 sm:-left-8 top-6 flex size-6 -translate-x-1/2 mt-0.5 items-center justify-center rounded-full border-[3px] bg-surface-container-lowest",
+                                      isActive ? "border-primary" : "border-surface-container-high"
+                                    )}>
+                                      {isActive && <div className="size-2 rounded-full bg-primary" />}
+                                    </div>
+
+                                    {/* Card */}
+                                    <div className="rounded-xl border border-surface-container-high bg-surface-container-lowest p-5 sm:p-6 shadow-xs transition-shadow hover:shadow-sm">
+                                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                          <div className="flex items-center gap-3">
+                                            <h3 className="text-xl font-bold text-foreground">
+                                              v{spec.version}
+                                            </h3>
+                                            {isActive && (
+                                              <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-none">
+                                                Active
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                                            <Clock className="size-3.5" />
+                                            <span>Updated {new Date(spec.updated_at).toLocaleString()}</span>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0">
+                                          {isActive ? (
+                                            <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+                                              <div className="mr-1.5 size-1.5 rounded-full bg-primary" />
+                                              CURRENT LIVE VERSION
+                                            </div>
+                                          ) : (
+                                            <Button
+                                              onClick={() => handleActivateSpec(spec.version)}
+                                              disabled={activatingVersion !== null}
+                                              className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-9 px-4"
+                                            >
+                                              {isActivating ? <Spinner className="mr-2 size-4" /> : null}
+                                              Activate Version
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-6 rounded-lg bg-surface-container-low/50 p-4">
+                                        <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                                          <FileText className="size-3.5" />
+                                          Instruction Summary
+                                        </p>
+                                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed line-clamp-4">
+                                          {spec.instruction_text}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </section>

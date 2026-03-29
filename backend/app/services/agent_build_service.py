@@ -51,6 +51,9 @@ class AgentBuildService:
     def get_job(self, job_id: int) -> IngestionJobModel | None:
         return self.job_repository.get_by_id(job_id)
 
+    def list_specs(self):
+        return self.spec_repository.list_all()
+
     def activate_version(self, version: int):
         return self.spec_repository.activate_version(version)
 

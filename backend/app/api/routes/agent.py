@@ -14,6 +14,7 @@ from app.schemas.agent import (
     AgentChatResponse,
     AgentMetaChatRequest,
     AgentMetaChatResponse,
+    AgentSpecResponse,
     AgentSpecStatus,
     BuildAgentRequest,
     BuildAgentResponse,
@@ -112,6 +113,24 @@ async def get_active_spec(
         active=spec.active,
         updated_at=spec.updated_at,
     )
+
+
+@router.get("/specs", response_model=list[AgentSpecResponse])
+async def list_specs(
+    build_service: AgentBuildService = Depends(get_agent_build_service),
+) -> list[AgentSpecResponse]:
+    specs = build_service.list_specs()
+    return [
+        AgentSpecResponse(
+            version=spec.version,
+            instruction_text=spec.instruction_text,
+            status=AgentSpecStatus(spec.status),
+            active=spec.active,
+            created_at=spec.created_at,
+            updated_at=spec.updated_at,
+        )
+        for spec in specs
+    ]
 
 
 @router.post("/spec/{version}/activate", response_model=ActivateAgentSpecResponse)
