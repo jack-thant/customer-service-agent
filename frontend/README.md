@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Service AI Frontend
 
-## Getting Started
+Next.js frontend for **Service AI**. This app provides:
 
-First, run the development server:
+- Customer support chat UI
+- Knowledge base configuration and re-ingestion trigger
+- Mistake review and status updates
+- Agent workflow UI (upload docs, build specs, activate versions, chat with active spec)
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- shadcn-style UI primitives
+
+## Prerequisites
+
+- Node.js 20+
+- npm 10+
+- A running backend API (default: `http://localhost:8000`)
+
+## Environment Variables
+
+Create `frontend/.env.local`:
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+If omitted, the frontend falls back to `http://localhost:8000`.
+
+## Install and Run
+
+From `frontend/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Available Scripts
+
+From `frontend/`:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run start
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Pages
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `/` - Customer support chat
+- `/config` - Knowledge base URL + additional guidelines + re-ingestion
+- `/mistakes` - Mistake queue and lifecycle management
+- `/agent` - Agent document upload, build pipeline, spec activation, runtime chat
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Integration
 
-## Learn More
+All API calls are defined in `lib/api.ts` and target `NEXT_PUBLIC_API_URL`.
 
-To learn more about Next.js, take a look at the following resources:
+Core backend routes used by the UI:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `GET /` health/info check
+- `POST /chat`
+- `GET /config`
+- `PUT /config`
+- `POST /config/reingest`
+- `GET /mistakes`
+- `POST /mistakes`
+- `PATCH /mistakes/{mistake_id}`
+- `POST /agent/docs`
+- `POST /agent/build`
+- `GET /agent/build/{job_id}`
+- `POST /agent/meta-chat`
+- `GET /agent/spec/active`
+- `GET /agent/specs`
+- `POST /agent/spec/{version}/activate`
+- `POST /agent/chat`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```text
+frontend/
+  app/                 # App Router pages
+  components/          # Shared UI and feature components
+  lib/
+    api.ts             # Backend API client
+    types.ts           # Shared frontend types
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The frontend assumes CORS is enabled on the backend.
+- Re-ingestion is triggered from `/config` and executed by the backend pipeline.
+- The deployment for frontend is via Vercel.
